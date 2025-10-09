@@ -1,5 +1,8 @@
 """Robustness Tests (Alternative Variable Tests) """
 
+"""Since these codes were extracted from my work records, 
+I imported all the libraries in every section at once :)."""
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
