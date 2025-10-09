@@ -1,132 +1,132 @@
 """Robustness Tests (Alternative Variable Tests) """
-
-
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
 import statsmodels.api as sm
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
+import statsmodels.api as sm
+import warnings
+warnings.filterwarnings('ignore')
+
 independent_path = r"C:\Users\30444\Desktop\data\cleaned data\cleaned_data1.csv"
-dependent_path = r"C:\Users\30444\Desktop\data\cleaned data\cleaned_data 2.csv"
 control_path = r"C:\Users\30444\Desktop\data\cleaned data\cleaned_contorl.csv"
-df_independent = pd.read_csv(independent_path)
-df_dependent = pd.read_csv(dependent_path)
-df_control = pd.read_csv(control_path)
-stock_code_col = df_control.columns[0]  
-date_col = "Accper"  
-merged = pd.merge(df_independent, df_dependent, on=[stock_code_col, date_col], how="inner")
-merged = pd.merge(merged, df_control, on=[stock_code_col, date_col], how="inner")
-merged[date_col] = pd.to_datetime(merged[date_col])
-roca_median = merged["ROCA"].median()
-print(f"ROCA中间值（阈值）：{roca_median:.4f}")
-merged["treatment"] = (merged["ROCA"] > roca_median).astype(int)
-print(f"\n处理组（高ROCA）样本量：{merged[merged['treatment']==1].shape[0]}")
-print(f"对照组（低ROCA）样本量：{merged[merged['treatment']==0].shape[0]}")
-covariates = [
-    "TTM",
-    "CR", "CaR", "DAR", "DER"
-]
+deduct_bes_path = r"C:\Users\30444\Desktop\data\Robustness test\Earnings per share after deducting non recurring gains and losses.csv"
 
-merged[covariates] = merged[covariates].fillna(merged[covariates].mean())
-X_cov = merged[covariates]  
-y_treat = merged["treatment"] 
-logit_model = LogisticRegression(max_iter=1000, class_weight="balanced")
-logit_model.fit(X_cov, y_treat)
-merged["ps_score"] = logit_model.predict_proba(X_cov)[:, 1] 
-y_pred_proba = merged["ps_score"]
-auc = roc_auc_score(y_treat, y_pred_proba)
-print(f"\n倾向得分模型AUC值：{auc:.4f}（>0.7说明模型较好）")
-plt.figure(figsize=(8, 5))
-sns.kdeplot(merged[merged["treatment"]==1]["ps_score"], label="处理组（高ROCA）", fill=True)
-sns.kdeplot(merged[merged["treatment"]==0]["ps_score"], label="对照组（低ROCA）", fill=True)
-plt.xlabel("Propensity Score")  
-plt.ylabel("Density") 
-plt.title(f"Distribution of Propensity Scores: Treatment vs Control Groups (AUC={auc:.4f})")  
-plt.legend()
-plt.show()
+date_col = "Accper"
+new_y_col = "BES after deducting"
 
+df_independent = pd.read_csv(independent_path, encoding='utf-8')
+df_control = pd.read_csv(control_path, encoding='utf-8')
+df_deduct_bes = pd.read_csv(deduct_bes_path, encoding='utf-8')
 
-treated = merged[merged["treatment"] == 1].copy()
-control = merged[merged["treatment"] == 0].copy()
+stock_code_col = df_control.columns[0]
+print(f"股票代码列：{stock_code_col}")
 
+for df in [df_independent, df_control, df_deduct_bes]:
+    df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
 
-matched_pairs = []
-treated_used = set() 
-
-for i, treated_row in treated.iterrows():
-    if i in treated_used:
-        continue
-    ps_diff = np.abs(control["ps_score"] - treated_row["ps_score"])
-    min_idx = ps_diff.idxmin()
-    if pd.notna(min_idx): 
-        matched_pairs.append((i, min_idx))
-        treated_used.add(i)
-        control = control.drop(min_idx) 
-
-matched_treated = merged.loc[[i for i, j in matched_pairs]]
-matched_control = merged.loc[[j for i, j in matched_pairs]]
-matched_data = pd.concat([matched_treated, matched_control], ignore_index=True)
-
-print(f"\n匹配后样本量：处理组={matched_treated.shape[0]}, 对照组={matched_control.shape[0]}")
-
-
-def calculate_smd(before_treat, before_control, after_treat, after_control, vars_list):
-    smd_before = []
-    smd_after = []
-    for var in vars_list:
-        mean_treat = before_treat[var].mean()
-        mean_control = before_control[var].mean()
-        std_treat = before_treat[var].std()
-        std_control = before_control[var].std()
-        smd_b = (mean_treat - mean_control) / np.sqrt((std_treat**2 + std_control**2) / 2)
-        smd_before.append(abs(smd_b))
-        
-        mean_treat_a = after_treat[var].mean()
-        mean_control_a = after_control[var].mean()
-        std_treat_a = after_treat[var].std()
-        std_control_a = after_control[var].std()
-        smd_a = (mean_treat_a - mean_control_a) / np.sqrt((std_treat_a**2 + std_control_a**2) / 2)
-        smd_after.append(abs(smd_a))
-    
-    smd_df = pd.DataFrame({
-        "协变量": vars_list,
-        "匹配前SMD": smd_before,
-        "匹配后SMD": smd_after
-    })
-    return smd_df
-
-
-smd_results = calculate_smd(
-    before_treat=treated,
-    before_control=merged[merged["treatment"]==0],
-    after_treat=matched_treated,
-    after_control=matched_control,
-    vars_list=covariates
+merged = pd.merge(
+    left=df_independent,
+    right=df_deduct_bes[[stock_code_col, date_col, new_y_col]],
+    on=[stock_code_col, date_col],
+    how="inner"
+)
+merged = pd.merge(
+    left=merged,
+    right=df_control,
+    on=[stock_code_col, date_col],
+    how="inner"
 )
 
-print("\n平衡性检验（标准化均值差异SMD）：")
-print(smd_results.round(4))
+merged = merged.dropna(subset=[new_y_col])
+core_vars = ["TTM", "ROCA", "ROE"]
+control_vars = ["CR", "CaR", "DAR", "DER"]
+fill_cols = core_vars + control_vars
+merged[fill_cols] = merged[fill_cols].fillna(merged[fill_cols].mean())
 
-plt.figure(figsize=(10, 6))
-x = np.arange(len(covariates))
-width = 0.35
-plt.bar(x - width/2, smd_results["匹配前SMD"], width, label="Before Matching") 
-plt.bar(x + width/2, smd_results["匹配后SMD"], width, label="After Matching")   
-plt.axhline(y=0.1, color='r', linestyle='--', label="SMD=0.1 (Threshold)")    
-plt.xticks(x, covariates, rotation=45)
-plt.ylabel("Standardized Mean Difference (SMD)")  
-plt.title("Comparison of Covariate Balance Before and After Matching")  
-plt.legend()
-plt.tight_layout()
-plt.show()
+print(f"\n合并后样本量：{len(merged)} 条（建议与原回归样本量对比）")
+print(f"扣非后每股收益（{new_y_col}）描述性统计：")
+print(merged[new_y_col].describe().round(4))
 
+core_vars = ["TTM", "ROCA", "ROE"]
+control_vars = ["CR", "CaR", "DAR", "DER"]
+print(f"\n控制变量列：{control_vars}")
+y = pd.to_numeric(merged[new_y_col], errors="coerce").dropna()
 
-att_bes = matched_treated["bes"].mean() - matched_control["bes"].mean()
-print(f"\n匹配后平均处理效应（ATT）：{att_bes:.4f}")
-print(f"解释：高ROCA组比低ROCA组的平均每股收益（bes）高{att_bes:.4f}单位（控制协变量后）")
+merged["Year"] = merged[date_col].dt.year
+year_dummies = pd.get_dummies(merged["Year"], prefix="Year")
+print(f"时间固定效应（年份）：{year_dummies.columns.tolist()}")
 
-X_att = sm.add_constant(matched_data[["treatment"] + covariates])
-y_att = matched_data["bes"]
-att_model = sm.OLS(y_att, X_att).fit()
+industry_cols = [col for col in df_control.columns if "Industry" in col]
+if not industry_cols:
+    print("警告：未检测到行业相关列，将不加入行业固定效应（与原回归保持一致）")
+    industry_dummies = pd.DataFrame(index=merged.index)
+else:
+    industry_dummies = merged[industry_cols].select_dtypes(include=['number'])
+print(f"行业固定效应列：{industry_dummies.columns.tolist()}")
 
-print("\n匹配后处理效应回归结果：")
-print(att_model.summary())
-print(f"\n处理变量（treatment）系数：{att_model.params['treatment']:.4f}，p值：{att_model.pvalues['treatment']:.4f}")
+X = pd.concat(
+    [
+        merged[core_vars],
+        merged[control_vars],
+        year_dummies,
+        industry_dummies
+    ],
+    axis=1
+)
+
+X = X.select_dtypes(include=['number'])
+X = sm.add_constant(X)
+X = X.loc[y.index]
+
+print(f"\n自变量矩阵维度：{X.shape}（行=样本数，列=变量数）")
+
+model = sm.OLS(y, X).fit(cov_type='HC3')
+
+print("\n" + "="*80)
+print(f"稳健性检验结果：扣非后每股收益（{new_y_col}）作为因变量")
+print("="*80)
+print(model.summary())
+
+print(f"\n核心拟合指标：")
+print(f"R²: {model.rsquared:.4f} | 调整后R²: {model.rsquared_adj:.4f}")
+
+print("\n【核心自变量系数（稳健性检验）】")
+for var in core_vars:
+    if var in model.params:
+        coef = model.params[var]
+        p_val = model.pvalues[var]
+        sig = "***" if p_val < 0.001 else "**" if p_val < 0.01 else "*" if p_val < 0.05 else ""
+        print(f"{var}: 系数={coef:.4f} | p值={p_val:.4f} {sig}")
+
+print("\n【控制变量整体影响（稳健性检验）】")
+if control_vars:
+    valid_control_vars = [var for var in control_vars if var in model.params]
+    control_coefs = [model.params[var] for var in valid_control_vars]
+    control_pvals = [model.pvalues[var] for var in valid_control_vars]
+    
+    avg_coef = np.mean(control_coefs) if control_coefs else 0
+    sig_count = sum(1 for p in control_pvals if p < 0.05) if control_pvals else 0
+    
+    print(f"有效控制变量数：{len(valid_control_vars)}")
+    print(f"控制变量平均系数：{avg_coef:.4f}")
+    print(f"5%水平显著的控制变量数：{sig_count}")
+else:
+    print("无控制变量")
+
+print("\n【回归公式（稳健性检验）】")
+formula_parts = []
+if "const" in model.params:
+    formula_parts.append(f"{model.params['const']:.4f}")
+formula_parts.extend([f"{model.params[var]:.4f}×{var}" for var in core_vars if var in model.params])
+formula_parts.append("[控制变量组合效应]")
+formula_parts.append("[时间固定效应]")
+if not industry_dummies.empty:
+    formula_parts.append("[行业固定效应]")
+formula_parts.append("[扰动项]")
+
+final_formula = f"{new_y_col} = " + " + ".join(formula_parts)
+print(final_formula)
