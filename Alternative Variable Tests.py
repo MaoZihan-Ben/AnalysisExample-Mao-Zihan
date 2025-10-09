@@ -1,14 +1,5 @@
 """Robustness Tests (Alternative Variable Tests) """
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import os
-import statsmodels.api as sm
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
-import statsmodels.api as sm
-import warnings
+
 warnings.filterwarnings('ignore')
 
 independent_path = r"C:\Users\30444\Desktop\data\cleaned data\cleaned_data1.csv"
