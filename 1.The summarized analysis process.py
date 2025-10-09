@@ -1,11 +1,11 @@
 
 """Dear Sir or Madam, 
-please note that the following code includes the baseline regression, 
-lagged model, dependent variable replacement, Propensity Score Matching (PSM), 
-Random Forest, and Multilayer Perceptron from my analytical work. 
+Please note that the following is the analysis process of the basic earnings per share 
+and profit indicators of the enterprise. 
+The specific process is available in the PDF file located in the DATASET folder.. 
 If you wish to run it on your device, 
 please kindly place the dataset on your computer's desktop 
-and ensure that the dataset file path is: "C:Users\30444\Desktop\data." 
+and ensure that the dataset file path is: "C:Users\30444\Desktop\data...." 
 Thank you.
 
 Respectfully, 
