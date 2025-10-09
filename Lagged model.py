@@ -1,6 +1,14 @@
 """Lagged model:Endogeneity Handling Logic, Result Stability Verification"""
 
-
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+import statsmodels.api as sm
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+import statsmodels.api as sm
 independent_path = r"C:\Users\30444\Desktop\data\cleaned data\cleaned_data1.csv"
 dependent_path = r"C:\Users\30444\Desktop\data\cleaned data\cleaned_data 2.csv"
 control_path = r"C:\Users\30444\Desktop\data\cleaned data\cleaned_contorl.csv"  
