@@ -5,7 +5,7 @@ and profit indicators of the enterprise.
 The specific process is available in the PDF file located in the DATASET folder.. 
 If you wish to run it on your device, 
 please kindly place the dataset on your computer's desktop 
-and ensure that the dataset file path is: "C:Users\30444\Desktop\data...." 
+and ensure that the dataset file path is right.
 Thank you.
 
 Respectfully, 
@@ -20,7 +20,7 @@ import seaborn as sns
 import os
 
 def handle_missing_values(df, filename):
-    """处理缺失值并生成缺失值热图"""
+    """缺失值处理"""
     original_rows = len(df)
     df_dropped = df.dropna() 
     missing_rows = original_rows - len(df_dropped)
@@ -51,7 +51,6 @@ def handle_duplicates(df, filename):
     return df_clean
 
 def process_data_folder(input_folder, output_folder):
-    """处理文件夹中所有CSV文件"""
     os.makedirs(output_folder, exist_ok=True)
     print(f"输出文件夹路径: {output_folder}\n")
     for filename in os.listdir(input_folder):
