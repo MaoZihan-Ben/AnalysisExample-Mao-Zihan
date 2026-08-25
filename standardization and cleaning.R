@@ -7,7 +7,7 @@ library(here)
 input_folder <- "C:/Users/30444/Desktop/data"   # 原始資料
 output_folder <- file.path(input_folder, "cleaned data")
 dir.create(output_folder, showWarnings = FALSE)
-log_file <- file.path(output_folder, "清洗紀錄表.csv") # 清洗日誌檔案
+log_file <- file.path(output_folder, "清洗紀錄表.csv") # 清洗日誌
 
 # 問卷常見特殊缺失編碼，RCT調研資料經常使用-99、-88代表拒答/遺漏
 special_missing_code <- c(-99, -88, "", " ", "NA")
